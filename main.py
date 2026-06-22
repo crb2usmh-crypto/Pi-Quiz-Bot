@@ -2,8 +2,6 @@ import os
 import random
 from datetime import datetime
 from supabase import create_client
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
 import asyncio
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -12,13 +10,12 @@ from telegram.ext import (
     CommandHandler,
     CallbackQueryHandler,
     ContextTypes,
-    filters,
 )
 
 # ===================== إعدادات البيئة =====================
 TOKEN = os.getenv("BOT_TOKEN")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")      # ✅ اسم المتغير فقط
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")      # ✅ اسم المتغير فقط
 
 # ===================== تهيئة Supabase =====================
 if SUPABASE_URL and SUPABASE_KEY:
@@ -42,7 +39,7 @@ DEFAULT_QUESTIONS = [
     {"question": "ما هي السلسلة الكتلية (Blockchain)؟", "options": ["سلسلة من الكتل تحتوي على بيانات", "شبكة من الحواسيب", "عملة رقمية", "منصة تداول"], "correct": "A", "explanation": "البلوكشين هي سلسلة من الكتل تحتوي على بيانات المعاملات."},
     {"question": "ما هي اللامركزية في البلوكشين؟", "options": ["تحكم جهة واحدة", "توزيع السلطة بين جميع المشاركين", "نظام مركزي", "لا شيء مما سبق"], "correct": "B", "explanation": "اللامركزية تعني توزيع السلطة والتحكم بين جميع المشاركين."},
     {"question": "ما هو التعدين في البلوكشين؟", "options": ["استخراج الذهب", "التحقق من المعاملات وإضافتها إلى السلسلة", "شراء العملات", "بيع العملات"], "correct": "B", "explanation": "التعدين هو عملية التحقق من المعاملات وإضافتها إلى البلوكشين."},
-    {"question": "ما هو الفرق بين البلوكشين العامة والخاصة؟", "options": ["لا يوجد فرق", "العامة مفتوحة للجميع، الخاصة مقيدة"], "correct": "B", "explanation": "البلوكشين العامة مفتوحة للجميع، بينما الخاصة تتطلب إذناً."},
+    {"question": "ما هو الفرق بين البلوكشين العامة والخاصة؟", "options": ["لا يوجد فرق", "العامة مفتوحة للجميع، الخاصة مقيدة", "العامة أسرع", "الخاصة أكثر أمناً"], "correct": "B", "explanation": "البلوكشين العامة مفتوحة للجميع، بينما الخاصة تتطلب إذناً."},
 
     # العقد (Nodes)
     {"question": "ما هي العقدة (Node) في البلوكشين؟", "options": ["جهاز كمبيوتر متصل بالشبكة يتحقق من المعاملات", "عملة رقمية", "تطبيق هاتف", "خادم مركزي"], "correct": "A", "explanation": "العقدة هي جهاز كمبيوتر متصل بالشبكة يقوم بالتحقق من المعاملات."},
@@ -54,7 +51,7 @@ DEFAULT_QUESTIONS = [
     {"question": "ما هو متصفح Pi Browser؟", "options": ["متصفح ويب عادي", "متصفح مخصص لتطبيقات Pi اللامركزية", "تطبيق للمحادثة", "منصة ألعاب"], "correct": "B", "explanation": "Pi Browser هو متصفح مخصص لتطبيقات Pi اللامركزية."},
     {"question": "ما هي محفظة Pi Wallet؟", "options": ["محفظة لتخزين البيتكوين", "محفظة رقمية لتخزين عملات Pi", "تطبيق دفع", "بطاقة ائتمان"], "correct": "B", "explanation": "محفظة Pi Wallet هي محفظة رقمية لحفظ عملات Pi."},
     {"question": "ما هو النظام البيئي لـ Pi Network؟", "options": ["مجموعة التطبيقات والخدمات المبنية على Pi", "منصة تداول", "مؤتمر سنوي", "مركز تدريب"], "correct": "A", "explanation": "النظام البيئي يشمل جميع التطبيقات والخدمات التي تعتمد على Pi."},
-    {"question": "ما هي تطبيقات Pi Ecosystem؟", "options": ["ألعاب ومنصات اجتماعية", "تطبيقات مالية وخدمات لامركزية", "كل ما سبق"], "correct": "C", "explanation": "تشمل التطبيقات المالية والاجتماعية والألعاب."},
+    {"question": "ما هي تطبيقات Pi Ecosystem؟", "options": ["ألعاب ومنصات اجتماعية", "تطبيقات مالية وخدمات لامركزية", "كل ما سبق", "لا شيء مما سبق"], "correct": "C", "explanation": "تشمل التطبيقات المالية والاجتماعية والألعاب."},
 
     # ترحيل العملات
     {"question": "ما هو Mainnet في Pi Network؟", "options": ["شبكة اختبار", "الشبكة الرئيسية", "تطبيق للهاتف", "منصة تداول"], "correct": "B", "explanation": "Mainnet هي الشبكة الرئيسية التي تعمل عليها العملات الحقيقية."},
@@ -95,9 +92,6 @@ DEFAULT_QUESTIONS = [
     {"question": "هل يمكن شراء Pi من البورصات حالياً؟", "options": ["نعم", "لا، فقط عبر التعدين", "في بعض البورصات", "غير معروف"], "correct": "B", "explanation": "حالياً، يتم الحصول على Pi عبر التعدين فقط."},
     {"question": "ما هي قيمة Pi الحالية؟", "options": ["قيمة غير محددة بعد", "1 دولار", "10 دولارات", "100 دولار"], "correct": "A", "explanation": "قيمة Pi لم تحدد بعد حتى Open Mainnet."},
     {"question": "ما هي الفوائد من امتلاك Pi؟", "options": ["شراء منتجات رقمية", "استثمار مستقبلي", "المشاركة في المجتمع", "كل ما سبق"], "correct": "D", "explanation": "الفوائد تشمل الشراء والاستثمار والمشاركة."},
-
-    # 60 سؤالاً إضافياً (مختصر)...
-    # (سيتم إكمالها في الكود الفعلي)
 ]
 
 # دالة لجلب الأسئلة المدمجة
@@ -108,20 +102,25 @@ def initialize_questions():
     """إضافة الأسئلة المدمجة إلى قاعدة البيانات إذا كانت فارغة"""
     if not supabase:
         return
-    res = supabase.table("quiz_questions").select("id", count="exact").execute()
-    if res.count == 0:
-        print("📝 جاري إضافة الأسئلة المدمجة...")
-        for q in DEFAULT_QUESTIONS:
-            supabase.table("quiz_questions").insert({
-                "question": q["question"],
-                "option_a": q["options"][0],
-                "option_b": q["options"][1],
-                "option_c": q["options"][2],
-                "option_d": q["options"][3],
-                "correct_answer": q["correct"],
-                "explanation": q.get("explanation", "")
-            }).execute()
-        print(f"✅ تم إضافة {len(DEFAULT_QUESTIONS)} سؤال مدمج.")
+    try:
+        res = supabase.table("quiz_questions").select("id", count="exact").execute()
+        if res.count == 0:
+            print("📝 جاري إضافة الأسئلة المدمجة...")
+            for q in DEFAULT_QUESTIONS:
+                supabase.table("quiz_questions").insert({
+                    "question": q["question"],
+                    "option_a": q["options"][0],
+                    "option_b": q["options"][1],
+                    "option_c": q["options"][2],
+                    "option_d": q["options"][3],
+                    "correct_answer": q["correct"],
+                    "explanation": q.get("explanation", "")
+                }).execute()
+            print(f"✅ تم إضافة {len(DEFAULT_QUESTIONS)} سؤال مدمج.")
+        else:
+            print(f"📊 يوجد {res.count} سؤال في قاعدة البيانات.")
+    except Exception as e:
+        print(f"⚠️ خطأ في إضافة الأسئلة: {e}")
 
 
 # ===================== دوال قاعدة البيانات =====================
@@ -293,7 +292,6 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE, chat
     context.user_data['current_question_id'] = q_id
     context.user_data['current_question_index'] = index
 
-    # إرسال السؤال
     sent_msg = await context.bot.send_message(
         chat_id=chat_id,
         text=f"⏳ <b>السؤال {index+1} من {total}</b> (لديك 60 ثانية)\n\n"
@@ -306,7 +304,6 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE, chat
         reply_markup=reply_markup
     )
 
-    # بدء المؤقت 60 ثانية
     loop = asyncio.get_event_loop()
     timer_job = loop.call_later(60, lambda: asyncio.create_task(handle_timeout(context, chat_id, index, sent_msg.message_id)))
 
@@ -314,8 +311,6 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE, chat
     context.user_data['quiz_message_id'] = sent_msg.message_id
 
 async def handle_timeout(context: ContextTypes.DEFAULT_TYPE, chat_id: int, index: int, message_id: int):
-    """معالج انتهاء الوقت (60 ثانية)"""
-    # نتحقق إذا كانت الجلسة لا تزال نشطة
     if context.user_data.get('quiz_index') != index:
         return
 
@@ -326,7 +321,6 @@ async def handle_timeout(context: ContextTypes.DEFAULT_TYPE, chat_id: int, index
     question_data = questions[index]
     correct_answer = question_data['correct_answer']
 
-    # إرسال الجواب الصحيح
     await context.bot.edit_message_text(
         chat_id=chat_id,
         message_id=message_id,
@@ -339,17 +333,11 @@ async def handle_timeout(context: ContextTypes.DEFAULT_TYPE, chat_id: int, index
         reply_markup=None
     )
 
-    # زيادة المؤشر
     context.user_data['quiz_index'] = index + 1
-
-    # تأخير 2 ثانية ثم إرسال السؤال التالي
     await asyncio.sleep(2)
-
-    # إرسال السؤال التالي (بدون update)
     await send_question_from_context(context, chat_id)
 
 async def send_question_from_context(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
-    """إرسال السؤال التالي من context (بدون update)"""
     index = context.user_data.get('quiz_index', 0)
     questions = context.user_data.get('quiz_queue', [])
     total = context.user_data.get('quiz_total', 0)
@@ -428,7 +416,6 @@ async def handle_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await query.edit_message_text("⚠️ حدث خطأ، حاول مرة أخرى.")
         return
 
-    # إلغاء المؤقت
     timer_job = context.user_data.get('quiz_timer_job')
     if timer_job:
         timer_job.cancel()
@@ -459,7 +446,6 @@ async def handle_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         parse_mode="HTML"
     )
 
-    # إرسال السؤال التالي
     await asyncio.sleep(1.5)
     await send_question_from_context(context, query.message.chat_id)
 
