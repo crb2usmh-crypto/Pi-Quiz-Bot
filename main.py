@@ -14,8 +14,8 @@ from telegram.ext import (
 
 # ===================== إعدادات البيئة =====================
 TOKEN = os.getenv("BOT_TOKEN")
-SUPABASE_URL = os.getenv("SUPABASE_URL")      # ✅ اسم المتغير فقط
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")      # ✅ اسم المتغير فقط
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 # ===================== تهيئة Supabase =====================
 if SUPABASE_URL and SUPABASE_KEY:
@@ -94,7 +94,6 @@ DEFAULT_QUESTIONS = [
     {"question": "ما هي الفوائد من امتلاك Pi؟", "options": ["شراء منتجات رقمية", "استثمار مستقبلي", "المشاركة في المجتمع", "كل ما سبق"], "correct": "D", "explanation": "الفوائد تشمل الشراء والاستثمار والمشاركة."},
 ]
 
-# دالة لجلب الأسئلة المدمجة
 def get_default_questions():
     return DEFAULT_QUESTIONS.copy()
 
@@ -178,7 +177,7 @@ def save_answer_history(user_id: int, question_id: int, answer: str, is_correct:
     }).execute()
 
 
-# ===================== دوال البوت =====================
+# ===================== دوال البوت المحسّنة =====================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -186,29 +185,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         create_user(user.id, user.first_name or "مستخدم", user.username or "")
 
     await update.message.reply_text(
-        f"🧠 مرحباً <b>{user.first_name}</b>!\n\n"
-        "أهلاً بك في <b>Pi Quiz</b> 🎯\n"
-        "اختبر معرفتك عن Pi Network!\n\n"
+        f"🧠 <b>مرحباً {user.first_name}!</b>\n\n"
+        "🌟 <b>أهلاً بك في Pi Quiz</b>\n"
+        "🏆 اختبر معرفتك عن <b>Pi Network</b>!\n\n"
         "📌 <b>الأوامر المتاحة:</b>\n"
-        "/quiz [عدد] - بدء الاختبار (1-100 سؤال)\n"
-        "/leaderboard - لوحة المتصدرين 🏆\n"
-        "/stats - عرض إحصائياتك 📊\n"
-        "/help - عرض المساعدة ℹ️\n\n"
-        "⏳ لديك 60 ثانية لكل سؤال!",
+        "▫️ /quiz [عدد] - بدء الاختبار (1-100 سؤال)\n"
+        "▫️ /leaderboard - لوحة المتصدرين 🏆\n"
+        "▫️ /stats - عرض إحصائياتك 📊\n"
+        "▫️ /help - عرض المساعدة ℹ️\n\n"
+        "⏳ <b>لديك 60 ثانية</b> لكل سؤال!\n"
+        "💡 الإجابة الصحيحة = <b>10 نقاط</b> 🎯",
         parse_mode="HTML"
     )
 
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🧠 <b>دليل استخدام Pi Quiz</b>\n\n"
-        "/quiz [عدد] - بدء الاختبار (1-100 سؤال)\n"
-        "/leaderboard - عرض أفضل اللاعبين 🏆\n"
-        "/stats - عرض إحصائياتك 📊\n"
-        "/start - الصفحة الرئيسية 🏠\n\n"
-        "⏳ <b>التوقيت:</b>\n"
-        "• 60 ثانية للإجابة على كل سؤال.\n"
-        "• إذا انتهى الوقت، يظهر الجواب الصحيح.\n\n"
-        "💡 الإجابة الصحيحة = 10 نقاط.",
+        "📖 <b>دليل استخدام Pi Quiz</b>\n\n"
+        "▫️ /quiz [عدد] - بدء الاختبار (1-100 سؤال)\n"
+        "▫️ /leaderboard - عرض أفضل اللاعبين 🏆\n"
+        "▫️ /stats - عرض إحصائياتك 📊\n"
+        "▫️ /start - الصفحة الرئيسية 🏠\n\n"
+        "⏳ <b>نظام التوقيت:</b>\n"
+        "• 60 ثانية للإجابة على كل سؤال\n"
+        "• عند انتهاء الوقت، يظهر الجواب الصحيح\n\n"
+        "🎯 <b>نظام النقاط:</b>\n"
+        "• الإجابة الصحيحة = 10 نقاط\n"
+        "• الإجابة الخاطئة = 0 نقطة\n\n"
+        "🏅 <b>المستويات:</b>\n"
+        "📗 0-50 نقطة: مبتدئ\n"
+        "📘 51-100 نقطة: متعلم\n"
+        "📙 101-200 نقطة: خبير\n"
+        "🏅 201+ نقطة: أسطورة",
         parse_mode="HTML"
     )
 
@@ -279,7 +286,13 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE, chat
         return
 
     question_data = questions[index]
-    q_id = question_data['id']
+    
+    # شريط تقدم بصري
+    progress_bar = ""
+    filled = int((index / total) * 20) if total > 0 else 0
+    empty = 20 - filled
+    progress_bar = "█" * filled + "░" * empty
+    progress_text = f"📊 التقدم: {progress_bar} {index}/{total}"
 
     keyboard = [
         [InlineKeyboardButton("🔵 A", callback_data=f"quiz_A_{index}"),
@@ -289,13 +302,14 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE, chat
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    context.user_data['current_question_id'] = q_id
+    context.user_data['current_question_id'] = question_data['id']
     context.user_data['current_question_index'] = index
 
     sent_msg = await context.bot.send_message(
         chat_id=chat_id,
-        text=f"⏳ <b>السؤال {index+1} من {total}</b> (لديك 60 ثانية)\n\n"
-             f"{question_data['question']}\n\n"
+        text=f"⏳ <b>السؤال {index+1} من {total}</b>\n"
+             f"{progress_text}\n\n"
+             f"📝 {question_data['question']}\n\n"
              f"🅰️ {question_data['option_a']}\n"
              f"🅱️ {question_data['option_b']}\n"
              f"🅲️ {question_data['option_c']}\n"
@@ -306,7 +320,6 @@ async def send_question(update: Update, context: ContextTypes.DEFAULT_TYPE, chat
 
     loop = asyncio.get_event_loop()
     timer_job = loop.call_later(60, lambda: asyncio.create_task(handle_timeout(context, chat_id, index, sent_msg.message_id)))
-
     context.user_data['quiz_timer_job'] = timer_job
     context.user_data['quiz_message_id'] = sent_msg.message_id
 
@@ -363,7 +376,13 @@ async def send_question_from_context(context: ContextTypes.DEFAULT_TYPE, chat_id
         return
 
     question_data = questions[index]
-    q_id = question_data['id']
+    
+    # شريط تقدم بصري
+    progress_bar = ""
+    filled = int((index / total) * 20) if total > 0 else 0
+    empty = 20 - filled
+    progress_bar = "█" * filled + "░" * empty
+    progress_text = f"📊 التقدم: {progress_bar} {index}/{total}"
 
     keyboard = [
         [InlineKeyboardButton("🔵 A", callback_data=f"quiz_A_{index}"),
@@ -373,13 +392,14 @@ async def send_question_from_context(context: ContextTypes.DEFAULT_TYPE, chat_id
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    context.user_data['current_question_id'] = q_id
+    context.user_data['current_question_id'] = question_data['id']
     context.user_data['current_question_index'] = index
 
     sent_msg = await context.bot.send_message(
         chat_id=chat_id,
-        text=f"⏳ <b>السؤال {index+1} من {total}</b> (لديك 60 ثانية)\n\n"
-             f"{question_data['question']}\n\n"
+        text=f"⏳ <b>السؤال {index+1} من {total}</b>\n"
+             f"{progress_text}\n\n"
+             f"📝 {question_data['question']}\n\n"
              f"🅰️ {question_data['option_a']}\n"
              f"🅱️ {question_data['option_b']}\n"
              f"🅲️ {question_data['option_c']}\n"
@@ -453,17 +473,30 @@ async def handle_quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = get_leaderboard(10)
     if not data:
-        await update.message.reply_text("🏆 لا يوجد لاعبون مسجلون بعد.")
+        await update.message.reply_text(
+            "🏆 <b>لا يوجد لاعبون مسجلون بعد!</b>\n\n"
+            "📝 كن أول من يبدأ الاختبار بـ /quiz",
+            parse_mode="HTML"
+        )
         return
 
-    text = "🏆 <b>لوحة المتصدرين</b>\n\n"
+    text = "🏆 <b>لوحة المتصدرين</b>\n"
+    text += "━━━━━━━━━━━━━━━━━━━━━\n\n"
+    
     medals = ["🥇", "🥈", "🥉"]
     for idx, user in enumerate(data):
         medal = medals[idx] if idx < 3 else f"{idx+1}."
         name = user.get("first_name", f"ID:{user['user_id']}")
         points = user.get("total_points", 0)
         correct = user.get("correct_answers", 0)
-        text += f"{medal} {name} - {points} نقطة (✅ {correct})\n"
+        
+        if idx == 0:
+            text += f"🏆 {medal} <b>{name}</b> - {points} نقطة ✅\n"
+        else:
+            text += f"   {medal} {name} - {points} نقطة ✅\n"
+
+    text += "\n━━━━━━━━━━━━━━━━━━━━━\n"
+    text += "📌 <i>تحديث فوري مع كل إجابة</i>"
 
     await update.message.reply_text(text, parse_mode="HTML")
 
@@ -473,26 +506,48 @@ async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     user_data = get_user(user_id)
     if not user_data:
-        await update.message.reply_text("❌ لا توجد بيانات لك. ابدأ بـ /quiz أولاً.")
+        await update.message.reply_text(
+            "❌ <b>لا توجد بيانات لك!</b>\n\n"
+            "📝 ابدأ الاختبار بـ /quiz",
+            parse_mode="HTML"
+        )
         return
 
     correct = user_data.get("correct_answers", 0)
     wrong = user_data.get("wrong_answers", 0)
     points = user_data.get("total_points", 0)
+    total = correct + wrong
 
-    if points <= 50: level = "📗 مبتدئ"
-    elif points <= 100: level = "📘 متعلم"
-    elif points <= 200: level = "📙 خبير"
-    else: level = "🏅 أسطورة"
+    # تحديد المستوى
+    if points <= 50: 
+        level = "📗 مبتدئ"
+        emoji = "🌱"
+    elif points <= 100: 
+        level = "📘 متعلم"
+        emoji = "📚"
+    elif points <= 200: 
+        level = "📙 خبير"
+        emoji = "🧠"
+    else: 
+        level = "🏅 أسطورة"
+        emoji = "👑"
+
+    # نسبة النجاح
+    success_rate = (correct / total * 100) if total > 0 else 0
 
     await update.message.reply_text(
-        f"📊 <b>إحصائياتك</b>\n\n"
-        f"👤 {user_data.get('first_name', 'مستخدم')}\n"
-        f"🏆 النقاط: {points}\n"
-        f"✅ الإجابات الصحيحة: {correct}\n"
-        f"❌ الإجابات الخاطئة: {wrong}\n"
-        f"📊 الإجمالي: {correct + wrong}\n"
-        f"📌 المستوى: {level}",
+        f"📊 <b>إحصائياتك</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 <b>{user_data.get('first_name', 'مستخدم')}</b>\n"
+        f"{emoji} <b>{level}</b>\n\n"
+        f"🏆 <b>النقاط:</b> {points}\n"
+        f"✅ <b>الإجابات الصحيحة:</b> {correct}\n"
+        f"❌ <b>الإجابات الخاطئة:</b> {wrong}\n"
+        f"📊 <b>الإجمالي:</b> {total}\n"
+        f"📈 <b>نسبة النجاح:</b> {success_rate:.1f}%\n"
+        f"📅 <b>آخر إجابة:</b> {user_data.get('last_answered', 'لم يجب بعد')}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📌 <i>استمر في التحدي لتحسين مستواك!</i>",
         parse_mode="HTML"
     )
 
@@ -513,7 +568,7 @@ def main():
 
     app.add_handler(CallbackQueryHandler(handle_quiz_answer, pattern="^quiz_"))
 
-    print("🧠 Pi Quiz Bot يعمل مع 100 سؤال مدمج وتوقيت 60 ثانية...")
+    print("🧠 Pi Quiz Bot يعمل مع 100 سؤال مدمج وتوقيت 60 ثانية ورسائل محسّنة...")
     app.run_polling()
 
 
